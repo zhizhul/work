@@ -715,6 +715,8 @@ void DataWorker::InsertTreeView(ShowInfo &root, ShowInfo node)
 {
     // 从根结点开始，找到合适的位置之后将信息插入
     // 首先根据pid找到对应的父结点
+    // 也有可能找不到父结点，比如说list功能里只完成了子项目的
+    // 情况，那么直接插到根结点上。    
     int pid = node.pid;
     ShowInfo *fnode = DataWorker::FindIdInfo(&root, pid);
     // 然后在父结点下插入相应结点
@@ -764,7 +766,9 @@ ShowInfo *DataWorker::FindIdInfo(ShowInfo *node, int id)
 	ShowInfo *find = DataWorker::FindIdInfo(&(node->sub_projs.at(i)), id);
 	if (find != nullptr) return find;
     }
-    return nullptr;
+    // 没有找到，那么还是返回根结点作为其父结点
+    if (node->id == 0) return node;
+    else return nullptr;
 }
 
 void DataWorker::TranUPTreeView(string &data_info, ShowInfo *node, int &uproj_num, int width, int ihspce)
