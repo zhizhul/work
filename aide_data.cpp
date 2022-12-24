@@ -1,6 +1,9 @@
 #include <ctime>
 #include <fstream>
 #include <vector>
+#include <map>
+#include <set> 
+#include <utility>
 #include <cstdlib>
 #include <algorithm>
 #include <iostream>
@@ -555,7 +558,7 @@ string DataWorker::AnalyseDeadlineInfo(bool &res)
     output += "\n";
     // 2. 计算所有未完成项目的最长占用长度
     // 该长度和NAME(ID)中的最大值加7之后是INFO数据应该起始的位置
-    int proj_llen = DataWorker::AlyseLgtUProjSLen();
+    int proj_llen = DataWorker::AlysejLgtUProjSLen();
     if (proj_llen + 30 >= width)
     {	
 	cout << "Narrow terminal, please adjust. " << endl;
@@ -616,6 +619,10 @@ int DataWorker::AlyseLgtUProjSLen()
 		string cname = name.substr(name.rfind('.') + 1, name.length() - name.rfind('.') - 1);
 		name_len = DataWorker::GetTerminalSLen(cname.c_str());
 		name_len += li[0].length() + 2;
+		for (int j = 0; j < name.length(); j++)
+		{
+		    if (name[j] == '.') name_len++;
+		}
 	    }
 	    else
 	    {
@@ -909,6 +916,7 @@ string DataWorker::AnalyseDoneInfo(bool &res)
     output += "\n";
     // 2. 计算所有已完成项目的最长占用长度
     // 该长度和NAME(ID)中的最大值加7之后是INFO数据应该起始的位置
+    // -- need work
     int proj_llen = DataWorker::AlyseLgtDProjSLen();
     if (proj_llen + 30 >= width)
     {	
@@ -916,7 +924,7 @@ string DataWorker::AnalyseDoneInfo(bool &res)
 	res = false;
 	return output;
     }
-    // 如果返回-1，说明没有未完成项目，向用户提示
+    // 如果返回-1，说明没有，向用户提示
     if (proj_llen == -1)
     {
 	cout << "Done project not be found." << endl;
@@ -933,9 +941,11 @@ string DataWorker::AnalyseDoneInfo(bool &res)
     for (int i = 0; i < width; i++) output += "=";
     output += "\n";
     // 4. 解析出所有要显示的项目的显示数据，并进行排序
+    // -- need work
     int dproj_num = 0;
     ShowInfo root = DataWorker::AnalyseDPTreeView(dproj_num);
     // 5. 将数据信息输入到output字符串中
+    // -- need work
     string data_info = "";
     DataWorker::TranDPTreeView(data_info, &root, dproj_num, width, ihspce);
     output += data_info;
@@ -946,16 +956,85 @@ string DataWorker::AnalyseDoneInfo(bool &res)
     return output;
 }
 
+// 用于AlyseLgtDProjSLen函数的数据结构
+typedef struct ProjInfo
+{
+    int pid;
+    string status;
+    int show_len;
+} ProjInfo;
+
 int DataWorker::AlyseLgtDProjSLen()
 {
     // 依次从文件中读取已完成项目，计算显示长度最大值
-    // 没有找到就返回-1
+    // 没有找到就返回-1。
+    // 这里需要注意的是，如果一个父项目虽然整个是没有
+    // 完成的，但是里面有后代项目已经完成了，那么仍然
+    // 要计算这个父项目的显示长度。
     int max_len = -1;
     int line_num = DataWorker::GetProjNum();
     ifstream db;
     db.open(DatabaseConfig::dir_path + DatabaseConfig::db_name, ios::out);
     string buff;
     getline(db, buff);
+    // 这里采用与AlyseLgtUProjSLen不同的实现方式，
+    // 首先取出所有<ID, PID, STATUS>来组成一个列表，
+    // 这里只取STATUS是非已取消状态的，然后遍历这个列
+    // 表，每找到一个已完成项目，就把它放到一个集合里，
+    // 并从这个已完成项目开始往上追溯，追溯到的所有项
+    // 目都放到集合里，最后这个集合就是所有要显示的项
+    // 目，那么遍历该集合就可以计算出最大显示长度了。
+    map<int, ProjInfo> ap_list;
+    vector<int> id_list;
+    for (int i = 0; i < line_num; i++)
+    {
+        getline(db, buff);
+        vector<string> li;
+        StringSplit(buff, ",", li);
+        if (li[5] != DatabaseConfig::status_cancel)
+        {
+            int id = atoi(li[0].c_str());
+            ProjInfo pi;
+            pi.pid = atoi(li[1].c_str());
+            pi.status = li[5];
+	    string name = li[2];
+	    int name_len;
+	    if (name.rfind('.') != string::npos)
+	    {
+		string cname = name.substr(name.rfind('.') + 1, name.length() - name.rfind('.') - 1);
+		name_len = DataWorker::GetTerminalSLen(cname.c_str());
+		name_len += li[0].length() + 2;
+		for (int j = 0; j < name.length(); j++)
+		{
+		    if (name[j] == '.') name_len++;
+		}
+	    }
+	    else
+	    {
+		name_len = DataWorker::GetTerminalSLen(name.c_str());
+		name_len += li[0].length() + 2;	    
+	    }
+	    pi.show_len = name_len;	    
+	    ap_list.insert(make_pair(id, pi));
+	    id_list.push_back(id);
+        }
+    }
+    set<int> dp_list;
+    for (int i = 0; i < id_list.size(); i++)
+    {
+        int id = id_list.at(i);
+	if (ap_list[id].status == DatabaseConfig::status_true)
+        {
+            dp_list.insert(id);
+            while (ap_list[id].pid != 0)
+	    {
+		id = ap_list[id].pid;
+		dp_list.insert(id);
+	    }
+        }
+    }
+    // -- work here
+    // -- below is old code
     for (int i = 0; i < line_num; i++)
     {
 	getline(db, buff);
