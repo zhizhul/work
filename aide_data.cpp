@@ -890,6 +890,10 @@ vector<int> DataWorker::GetCProjIDs(int id)
 
 string DataWorker::AnalyseDoneInfo(bool &res)
 {
+    // 相较于显示未完成项目信息，显示已完成项目信息需要
+    // 做一个调整，那就是如果子项目已完成，但是父项目还
+    // 没完成，那么要把相关的父项目都显示出来，但是不显
+    // 示未完成父项目的日期。
     string output = "";
     // 1. 首先生成一串和屏幕相等的等号加上去
     struct winsize window;
@@ -928,7 +932,7 @@ string DataWorker::AnalyseDoneInfo(bool &res)
     output += "  DATE     \n";
     for (int i = 0; i < width; i++) output += "=";
     output += "\n";
-    // 4. 解析出所有完成项目的显示数据，并进行排序
+    // 4. 解析出所有要显示的项目的显示数据，并进行排序
     int dproj_num = 0;
     ShowInfo root = DataWorker::AnalyseDPTreeView(dproj_num);
     // 5. 将数据信息输入到output字符串中
