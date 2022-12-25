@@ -70,6 +70,7 @@ typedef struct ShowInfo
     int id;
     int pid;
     int sub_level;
+    string status;
     vector<ShowInfo> sub_projs;   
 } ShowInfo;
 

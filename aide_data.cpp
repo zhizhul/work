@@ -713,6 +713,7 @@ ShowInfo DataWorker::TranShowInfo(vector<string> li)
     {
 	if (li[2][i] == '.') slev++;
     }
+    info.status = li[5];
     info.sub_level = slev;
     info.sub_projs.clear();
     return info;
@@ -916,7 +917,6 @@ string DataWorker::AnalyseDoneInfo(bool &res)
     output += "\n";
     // 2. 计算所有已完成项目的最长占用长度
     // 该长度和NAME(ID)中的最大值加7之后是INFO数据应该起始的位置
-    // -- need work
     int proj_llen = DataWorker::AlyseLgtDProjSLen();
     if (proj_llen + 30 >= width)
     {	
@@ -941,11 +941,9 @@ string DataWorker::AnalyseDoneInfo(bool &res)
     for (int i = 0; i < width; i++) output += "=";
     output += "\n";
     // 4. 解析出所有要显示的项目的显示数据，并进行排序
-    // -- need work
     int dproj_num = 0;
     ShowInfo root = DataWorker::AnalyseDPTreeView(dproj_num);
     // 5. 将数据信息输入到output字符串中
-    // -- need work
     string data_info = "";
     DataWorker::TranDPTreeView(data_info, &root, dproj_num, width, ihspce);
     output += data_info;
@@ -956,12 +954,13 @@ string DataWorker::AnalyseDoneInfo(bool &res)
     return output;
 }
 
-// 用于AlyseLgtDProjSLen函数的数据结构
+// 用于AlyseLgtDProjSLen等函数用于分析的数据结构
 typedef struct ProjInfo
 {
     int pid;
     string status;
     int show_len;
+    vector<string> total_info;
 } ProjInfo;
 
 int DataWorker::AlyseLgtDProjSLen()
@@ -1033,29 +1032,16 @@ int DataWorker::AlyseLgtDProjSLen()
 	    }
         }
     }
-    // -- work here
-    // -- below is old code
-    for (int i = 0; i < line_num; i++)
+    if (dp_list.size() == 0)
     {
-	getline(db, buff);
-	vector<string> li;
-	StringSplit(buff, ",", li);
-	if (li[5] == DatabaseConfig::status_true)
+	db.close();
+	return -1;
+    }
+    for (set<int>::iterator i = dp_list.begin(); i != dp_list.end(); i++)
+    {
+	if (max_len < ap_list[*i].show_len)
 	{
-	    string name = li[2];
-	    int name_len;
-	    if (name.rfind('.') != string::npos)
-	    {
-		string cname = name.substr(name.rfind('.') + 1, name.length() - name.rfind('.') - 1);
-		name_len = DataWorker::GetTerminalSLen(cname.c_str());
-		name_len += li[0].length() + 2;
-	    }
-	    else
-	    {
-		name_len = DataWorker::GetTerminalSLen(name.c_str());
-		name_len += li[0].length() + 2;	    
-	    }
-	    if (max_len < name_len) max_len = name_len;
+	    max_len = ap_list[*i].show_len;
 	}
     }
     db.close();
@@ -1064,23 +1050,51 @@ int DataWorker::AlyseLgtDProjSLen()
 
 ShowInfo DataWorker::AnalyseDPTreeView(int &dproj_num)
 {
-    // 依次读取文件，找到完成项目后解析其信息
-    // 并加入到vector列表中
-    vector<vector<string>> dprojs;
+    // 这里先把所有非取消项目找出来，然后再解
+    // 析出所有需要显示的项目，再生成显示信息
+    // 树数据结构
     int line_num = DataWorker::GetProjNum();
     ifstream db;
     db.open(DatabaseConfig::dir_path + DatabaseConfig::db_name, ios::out);
     string buff;
     getline(db, buff);
+    map<int, ProjInfo> ap_list;
+    vector<int> id_list;
     for (int i = 0; i < line_num; i++)
     {
 	getline(db, buff);
 	vector<string> li;
 	StringSplit(buff, ",", li);
-	if (li[5] == DatabaseConfig::status_true)
+	if (li[5] != DatabaseConfig::status_cancel)
 	{
-	    dprojs.push_back(li);
+	    int id = atoi(li[0].c_str());
+            ProjInfo pi;
+            pi.pid = atoi(li[1].c_str());
+            pi.status = li[5];
+	    pi.show_len = -1;
+	    pi.total_info = li;
+	    ap_list.insert(make_pair(id, pi));
+	    id_list.push_back(id);
 	}
+    }
+    set<int> dp_list;
+    for (int i = 0; i < id_list.size(); i++)
+    {
+        int id = id_list.at(i);
+	if (ap_list[id].status == DatabaseConfig::status_true)
+        {
+            dp_list.insert(id);
+            while (ap_list[id].pid != 0)
+	    {
+		id = ap_list[id].pid;
+		dp_list.insert(id);
+	    }
+        }
+    }
+    vector<vector<string>> dprojs;
+    for (set<int>::iterator i = dp_list.begin(); i != dp_list.end(); i++)
+    {
+	dprojs.push_back(ap_list[*i].total_info);
     }
     db.close();
     // 对vector列表基于sub_level进行排序
@@ -1135,7 +1149,11 @@ void DataWorker::TranDPTreeView(string &data_info, ShowInfo *node, int &dproj_nu
 	    multiline_info = true;
 	    info += DataWorker::OutputOneLineInfo(node->info.c_str(), info_index, info_hitend, info_width);
 	}
-	info += "   \033[32m" + node->date + "\033[0m   \n";	
+	if (node->status == DatabaseConfig::status_true)
+	{
+	    info += "   \033[32m" + node->date + "\033[0m";
+	}
+	info += "\n";	
 	if (multiline_info == true)
 	{
 	    while (info_hitend == false)
