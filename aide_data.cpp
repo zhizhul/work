@@ -558,7 +558,7 @@ string DataWorker::AnalyseDeadlineInfo(bool &res)
     output += "\n";
     // 2. 计算所有未完成项目的最长占用长度
     // 该长度和NAME(ID)中的最大值加7之后是INFO数据应该起始的位置
-    int proj_llen = DataWorker::AlysejLgtUProjSLen();
+    int proj_llen = DataWorker::AlyseLgtUProjSLen();
     if (proj_llen + 30 >= width)
     {	
 	cout << "Narrow terminal, please adjust. " << endl;
