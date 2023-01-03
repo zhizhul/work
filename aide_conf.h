@@ -97,7 +97,7 @@ enum Function
 namespace DatabaseConfig
 {
   // 数据文件的所在目录
-  const string dir_path = "/home/zhizhul/data/work/";
+  const string dir_path = "/Users/liuzhizhu/home/data/work/";
   // 数据库文件的文件名
   const string db_name = "database";
   // 数据库配置文件的文件名

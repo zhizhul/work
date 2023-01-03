@@ -35,4 +35,4 @@ main.o: main.cpp
 	g++ -c main.cpp -o main.o
 
 clean:
-	rm -rf work main.o aide_conf.o aide_data.o aide_itrc.o func_create.o func_adjust.o
+	rm -rf work *.o

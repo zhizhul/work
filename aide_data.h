@@ -67,8 +67,10 @@ public:
     static ShowInfo TranShowInfo(vector<string> li);
     // 比较项目的vector数据结构的sub-level，用于排序
     static bool CpProjVecSubLev(const vector<string> left, const vector<string> riht);
-    // 插入结点到显示信息树数据结构中
-    static void InsertTreeView(ShowInfo &root, ShowInfo node);
+    // 插入结点到显示信息树数据结构中(用于未完成项目情形)
+    static void InsertUPTreeView(ShowInfo &root, ShowInfo node);
+    // 插入结点到显示信息树数据结构中(用于已完成项目情形)
+    static void InsertDPTreeView(ShowInfo &root, ShowInfo node);
     // 在树数据结构中找到对应ID的结点
     static ShowInfo *FindIdInfo(ShowInfo *node, int id);
     // 将显示信息树数据结构解析为显示到屏幕上的字符串信息

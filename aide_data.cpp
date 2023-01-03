@@ -640,7 +640,7 @@ ShowInfo DataWorker::AnalyseUPTreeView(int &uproj_num)
 {
     // 依次读取文件，找到未完成项目后解析其信息
     // 并加入到vector列表中
-    vector<vector<string>> uprojs;
+    vector<vector<string> > uprojs;
     int line_num = DataWorker::GetProjNum();
     ifstream db;
     db.open(DatabaseConfig::dir_path + DatabaseConfig::db_name, ios::out);
@@ -668,7 +668,7 @@ ShowInfo DataWorker::AnalyseUPTreeView(int &uproj_num)
     for (int i = 0; i < uprojs.size(); i++)
     {
 	ShowInfo node = DataWorker::TranShowInfo(uprojs.at(i));
-	DataWorker::InsertTreeView(root, node);
+	DataWorker::InsertUPTreeView(root, node);
     }
     uproj_num = uprojs.size();
     return root;
@@ -688,8 +688,8 @@ bool DataWorker::CpProjVecSubLev(const vector<string> left, const vector<string>
     {
 	if (rstr[i] == '.') rlev++;
     }
-    if (llev > rlev) return false;
-    return true;
+    if (llev >= rlev) return false;
+    return true;    
 }
 
 ShowInfo DataWorker::TranShowInfo(vector<string> li)
@@ -719,7 +719,7 @@ ShowInfo DataWorker::TranShowInfo(vector<string> li)
     return info;
 }
 
-void DataWorker::InsertTreeView(ShowInfo &root, ShowInfo node)
+void DataWorker::InsertUPTreeView(ShowInfo &root, ShowInfo node)
 {
     // 从根结点开始，找到合适的位置之后将信息插入
     // 首先根据pid找到对应的父结点
@@ -761,6 +761,53 @@ void DataWorker::InsertTreeView(ShowInfo &root, ShowInfo node)
 		}
 	    }
 	    if (earlier == true) break;
+	}
+	fnode->sub_projs.insert(fnode->sub_projs.begin() + pos, node);
+    }
+}
+
+void DataWorker::InsertDPTreeView(ShowInfo &root, ShowInfo node)
+{
+    // 从根结点开始，找到合适的位置之后将信息插入
+    // 首先根据pid找到对应的父结点
+    // 也有可能找不到父结点，比如说list功能里只完成了子项目的
+    // 情况，那么直接插到根结点上。    
+    int pid = node.pid;
+    ShowInfo *fnode = DataWorker::FindIdInfo(&root, pid);
+    // 然后在父结点下插入相应结点
+    if (fnode->sub_projs.size() == 0)
+    {
+	fnode->sub_projs.push_back(node);
+    }
+    else
+    {
+	int pos = 0;
+	for (; pos < fnode->sub_projs.size(); pos++)
+	{
+	    string node_date = node.date;
+	    string relt_date = fnode->sub_projs.at(pos).date;
+	    if (node_date == relt_date)
+	    {
+		int node_id = node.id;
+		int relt_id = fnode->sub_projs.at(pos).id;
+		if (node_id < relt_id) break;
+		else continue;
+	    }
+	    bool later = false;
+	    for (int j = 0; j < 8; j++)
+	    {
+		if (node_date[j] < relt_date[j])
+		{
+		    later = false;
+		    break;
+		}
+		else if (node_date[j] > relt_date[j])
+		{
+		    later = true;
+		    break;
+		}
+	    }
+	    if (later == true) break;
 	}
 	fnode->sub_projs.insert(fnode->sub_projs.begin() + pos, node);
     }
@@ -1091,7 +1138,7 @@ ShowInfo DataWorker::AnalyseDPTreeView(int &dproj_num)
 	    }
         }
     }
-    vector<vector<string>> dprojs;
+    vector<vector<string> > dprojs;
     for (set<int>::iterator i = dp_list.begin(); i != dp_list.end(); i++)
     {
 	dprojs.push_back(ap_list[*i].total_info);
@@ -1108,7 +1155,7 @@ ShowInfo DataWorker::AnalyseDPTreeView(int &dproj_num)
     for (int i = 0; i < dprojs.size(); i++)
     {
 	ShowInfo node = DataWorker::TranShowInfo(dprojs.at(i));
-	DataWorker::InsertTreeView(root, node);
+	DataWorker::InsertDPTreeView(root, node);
     }
     dproj_num = dprojs.size();
     return root;
@@ -1131,7 +1178,7 @@ void DataWorker::TranDPTreeView(string &data_info, ShowInfo *node, int &dproj_nu
 	{
 	    info += " ";
 	}
-      	int info_width = width - ihspce - 25;	
+      	int info_width = width - ihspce - 25;
 	int info_len = DataWorker::GetTerminalSLen(node->info.c_str());
 	bool multiline_info = false;
 	int info_index = 0;
